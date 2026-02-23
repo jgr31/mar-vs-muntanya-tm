@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Classificador Mar vs Muntanya</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+
+<body>
+  <h1>Classificador: Mar vs Muntanya</h1>
+
+  <button id="btnLoad" onclick="init()">Carregar Model</button>
+  <input type="file" id="imageUpload" accept="image/*" />
+  <button id="btnPredict" onclick="predictImage()" disabled>Classificar</button>
+
+  <div id="status" style="margin-top:10px;"></div>
+  <div id="preview" style="margin-top:10px;"></div>
+  <div id="result" style="margin-top:10px;font-size:18px;"></div>
+
+  <script type="text/javascript">
+    // const MODEL_URL = "https://teachablemachine.withgoogle.com/models/0Y--lmvWc/";
+	const MODEL_URL = "./model/";
+
+    let model = null;
+    let isReady = false;
+
+    async function init() {
+      try {
+        document.getElementById("status").textContent = "Carregant model...";
+        model = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
+        isReady = true;
+        document.getElementById("status").textContent = "Model carregat correctament!";
+        document.getElementById("btnPredict").disabled = false;
+        alert("Model carregat correctament!");
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").textContent = "Error carregant el model. Mira la consola (F12).";
+      }
+    }
+
+    async function predictImage() {
+      const statusEl = document.getElementById("status");
+      const resultEl = document.getElementById("result");
+      const previewEl = document.getElementById("preview");
+      resultEl.innerHTML = "";
+
+      if (!isReady || !model) {
+        statusEl.textContent = "Primer has de carregar el model.";
+        return;
+      }
+
+      const input = document.getElementById("imageUpload");
+      if (!input.files || input.files.length === 0) {
+        statusEl.textContent = "Selecciona una imatge primer.";
+        return;
+      }
+
+      const file = input.files[0];
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      img.onload = async () => {
+        // Mostra la imatge que estàs classificant (així veus que sí “fa coses”)
+        previewEl.innerHTML = "";
+        img.style.maxWidth = "400px";
+        img.style.height = "auto";
+        previewEl.appendChild(img);
+
+        statusEl.textContent = "Classificant...";
+
+        try {
+          const prediction = await model.predict(img);
+          // Ordena de més probable a menys probable
+          prediction.sort((a, b) => b.probability - a.probability);
+
+          let html = "<b>Resultats:</b><br>";
+          for (const p of prediction) {
+            html += `${p.className}: ${(p.probability * 100).toFixed(2)}%<br>`;
+          }
+          resultEl.innerHTML = html;
+          statusEl.textContent = "Fet.";
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Error classificant. Mira la consola (F12).";
+        }
+      };
+
+      img.onerror = () => {
+        statusEl.textContent = "No s'ha pogut carregar la imatge.";
+      };
+    }
+  </script>
+</body>
+</html>
